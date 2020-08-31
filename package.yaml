@@ -1,0 +1,23 @@
+name: ammi
+
+dependencies:
+- base
+- bytestring
+- text
+- transformers
+- exceptions
+
+library:
+  source-dirs: src
+
+executables:
+  ammi-exe:
+    main: Main.hs
+    source-dirs: app
+    ghc-options:
+    - -Wall
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - ammi
