@@ -30,6 +30,8 @@ runFmtCompiler :: s -> FmtCompiler s e a -> Either e (a, s)
 runFmtCompiler s = runExcept . flip runStateT s
 
 -- | Run compiler with given 'TargetAttr' and initial state.
+--
+-- TODO: state should be format state + index, current output
 runCompiler :: TargetAttr -> s -> Compiler s e a -> Either e (a, s)
 runCompiler tAttr s = runFmtCompiler s . flip runReaderT tAttr
 
@@ -37,10 +39,11 @@ runCompiler tAttr s = runFmtCompiler s . flip runReaderT tAttr
 compile
     :: TargetAttr
     -> s
-    -> (TextBlockElement -> Compiler s (Either b e) a)
+    -> a
+    -> (TextBlockElement -> FmtCompiler (s, a) (Either b e) a)
     -> TextBlock
     -> Either (TextBlockErr b e) (a, s)
-compile tAttr s _ _ = runCompiler tAttr s $ do
+compile tAttr s _ _ _ = runCompiler tAttr s $ do
     compileErr $ TBErrCommonElement 0 $ TBECELineTooLong 0
 
 compileErr :: e -> Compiler s e a
@@ -49,7 +52,7 @@ compileErr = lift . lift . throwE
 exTB :: TextBlock
 exTB = []
 
-exTBEFunc :: TextBlockElement -> Compiler o (Either b e) Integer
+exTBEFunc :: TextBlockElement -> FmtCompiler (s, Integer) (Either b e) Integer
 exTBEFunc _ = return 0
 
 exTA :: TargetAttr

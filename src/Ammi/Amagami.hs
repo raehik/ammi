@@ -2,6 +2,8 @@
 
 module Ammi.Amagami where
 
+import Ammi.Types
+
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BLC
@@ -11,10 +13,9 @@ import Data.Text (Text)
 import Data.Text.Encoding
 import Control.Monad.Trans.Except
 
-import Ammi.Types
+type Compiler a = StateT CompileState (Except Text) a
 
--- | Block error encountered while compiling an Ammi text block to Amagami
---   script format.
+-- | Error encountered while compiling an Ammi text block to ASCF.
 data TextBlockErrBlock
   -- | Total byte count for the text block is too large (> 255).
   --
@@ -44,14 +45,44 @@ attrs = TargetAttr
   , tAttrCols  = 44
   }
 
-type TextBlockErrAmagami = TextBlockErr TextBlockErrBlock TextBlockErrElement
+-- | Try to compile an Ammi text block into an ASCF text block.
+--
+-- TODO: want to tidy this up...
+compileTextBlock :: TextBlock -> Compiler Either Text BL.ByteString
+compileTextBlock tblk =
+    case compileTextBlockContent tblk of
+        Left  err     -> err
+        Right content -> toLazyByteString . decorateTextBlock $ content
 
--- | Try to encode an Ammi text block into an ASCF text block.
-encodeAmagami :: TextBlock -> Either TextBlockErrAmagami BL.ByteString
-encodeAmagami tblk = runExcept $ do
-    (tblkContent, length) <- encodeAmagami' 0 0 mempty tblk
-    let tblkHeader = word8 0x05 <> int8 (fromIntegral length) <> word8 0x00
-    return . toLazyByteString $ tblkHeader <> tblkContent
+-- | Decorate an ASCF text block with its header.
+--
+-- Header is 0x05 LENGTH 0x00.
+decorateTextBlock :: (Builder, Word8) -> Builder
+decorateTextBlock (content, len) = header <> content
+  where
+    header      = mconcat . map word8 $ headerBytes
+    headerBytes = [0x05, len, 0x00]
+
+data CompileState = CompileState
+  { cmpStBEIdx  :: Integer
+  , cmpStCursor :: Integer, Integer
+  } deriving (Eq, Ord, Show)
+
+cmpStDef = CompileState
+  { cmpStBEIdx  = 0
+  , cmpStCursor = (0, 0)
+  , cmpSt
+  }
+
+compileTextBlockContent :: TextBlock -> Either Text (Builder, Word8)
+compileTextBlockContent tblk =
+    case runExcept . flip runStateT cmpStDef f of
+
+
+    runExcept $ do
+    (content, len) <- compileTextBlockContent tblk
+    let header = word8 0x05 <> int8 (fromIntegral len) <> word8 0x00
+    return . toLazyByteString $ header <> content
 
 encodeAmagami' :: Integer -> Integer -> Builder -> TextBlock -> Except TextBlockErrAmagami (Builder, Integer)
 encodeAmagami' idx bytes builder block
