@@ -14,7 +14,7 @@ data TextBlockElement
   = TBEText Text
 
   -- | Text command (e.g. pause, play voice line).
-  | TBECmd TextBlockElementCommand
+  | TBECmd TextBlockCommand
 
   -- | Arbitrary bytestring to insert in the text block.
   --
@@ -22,7 +22,7 @@ data TextBlockElement
   | TBEBytes BS.ByteString
     deriving (Eq, Ord, Show)
 
-data TextBlockElementCommand
+data TextBlockCommand
   -- | Pause for a given number of milliseconds.
   --
   -- Note that the Amagami script format seems to only allow 0-990 milliseconds,
