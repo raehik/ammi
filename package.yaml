@@ -6,6 +6,7 @@ dependencies:
 - text
 - transformers
 - exceptions
+- text-icu
 
 library:
   source-dirs: src

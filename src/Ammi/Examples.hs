@@ -4,14 +4,22 @@ module Ammi.Examples where
 
 import Ammi.Types
 
-import Data.Text (Text)
-import qualified Data.ByteString as BS
-
 exATBNothing :: TextBlock
 exATBNothing = []
 
 exATBSomething :: TextBlock
 exATBSomething =
-  [ TBEText "4567891234"
-  , TBECmd $ TBCPause 450
+  [ TBText "First line"
+  , TBCmd $ TBCNewline
+  , TBCmd $ TBCPause 450
+  , TBText "Second line"
+  ]
+
+-- Compiles down to the original ASCF text box!
+exATBAmagamiFirstTextbox :: TextBlock
+exATBAmagamiFirstTextbox =
+  [ TBText "多分気のせいだとは思うんだけど、"
+  , TBCmd $ TBCPause 150
+  , TBCmd $ TBCNewline
+  , TBText "その日の夕焼け空は特別まぶしい気がした……。"
   ]
