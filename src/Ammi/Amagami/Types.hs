@@ -15,6 +15,11 @@ type Compiler a = StateT CompileState (ExceptT Text IO) a
 -- one works via bindings).
 type TextCompiler a = StateT TextCompileState (ExceptT Text IO) a
 
+-- | Command compiler monad.
+--
+-- Barebones. In particular, removed IO.
+type CommandCompiler a = StateT Integer (Except Text) a
+
 data CompileState = CompileState
   { cmpStByteCount :: Integer
   } deriving (Eq, Ord, Show)

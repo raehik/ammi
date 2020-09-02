@@ -53,6 +53,13 @@ pprintASCF bs = T.intercalate " " $ BL.foldr f [] bs
   where
     f byte = (:) $ T.toUpper . decodeUtf8 . BL.toStrict . toLazyByteString . word8HexFixed $ byte
 
+compileAndPrint :: Compiler Builder -> IO ()
+compileAndPrint cmp = do
+    out <- runCompiler cmp
+    case out of
+        Left err -> T.putStrLn err
+        Right t -> T.putStrLn . pprintASCF . toLazyByteString $ t
+
 compileTextAndPrint :: TextCompiler Builder -> IO ()
 compileTextAndPrint cmp = do
     out <- runTextCompiler cmp
@@ -75,35 +82,37 @@ compile = foldCompile compileScriptElement
 
 compileScriptElement :: ScriptElement -> Compiler Builder
 compileScriptElement (ScriptElementTextBlock tblk) = do
-    (compiledElement, s) <- lift . flip runStateT tCmpStDef $ compileTextBlock tblk
-    addBytes $ tCmpStByteCount s
-    return compiledElement
-compileScriptElement _ = return mempty
-
--- | Try to compile an Ammi text block into an ASCF text block.
-compileTextBlock :: TextBlock -> TextCompiler Builder
-compileTextBlock tblk = do
     -- compile content
-    content <- compileTextBlockContent tblk
+    (content, st) <- lift . flip runStateT tCmpStDef $ compileTextBlock tblk
+    let len = tCmpStByteCount st
 
     -- decorate with header
-    -- TODO: we assume the previous function ensured <=255
-    bytes <- gets tCmpStByteCount
-    return $ decorateTextBlock (content, fromIntegral bytes)
+    threeByteLengthHeader 0x05 content (fromIntegral len)
+compileScriptElement (ScriptElementCommand cmd) = do
+    -- compile content
+    -- lol: I unwrap the full stack, then wrap the plain Except in ExceptT e IO
+    (content, len) <- lift . except . runExcept . flip runStateT 0 $ compileCommand cmd
 
--- | Decorate an ASCF text block content with its header.
---
--- Header is @0x05 LENGTH 0x00@.
-decorateTextBlock :: (Builder, Word8) -> Builder
-decorateTextBlock (content, len) = header <> content
-  where
-    header = encodeBytes [0x05, len, 0x00]
+    -- decorate with header
+    threeByteLengthHeader 0x07 content (fromIntegral len)
+compileScriptElement (ScriptElement03String bs) = do
+    addBytes 5
+    return $ byteString bs
+
+threeByteLengthHeader :: Word8 -> Builder -> Word8 -> Compiler Builder
+threeByteLengthHeader firstByte content len = do
+    let header = encodeBytes [firstByte, len, 0x00]
+    addBytes $ toInteger len + 3
+    return $ header <> content
 
 encodeBytes :: [Word8] -> Builder
 encodeBytes = byteString . BS.pack
 
-compileTextBlockContent :: TextBlock -> TextCompiler Builder
-compileTextBlockContent = foldCompile compileTextBlockElement
+compileCommand :: Command -> CommandCompiler Builder
+compileCommand _ = return mempty
+
+compileTextBlock :: TextBlock -> TextCompiler Builder
+compileTextBlock = foldCompile compileTextBlockElement
 
 compileTextBlockElement :: TextBlockElement -> TextCompiler Builder
 compileTextBlockElement (TBText    t) = do
